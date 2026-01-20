@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  price       Int
+  quantity    String
+  discount    String?
+  priority    Int
+  productType String
+  type        String
+  imageUrl    String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  code        String?   @unique
+  stock       Int?
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model ProductAlternative {
+  id          String   @id
+  name        String
+  price       Int
+  quantity    String
+  discount    String?
+  priority    Int
+  productType String
+  type        String
+  imageUrl    String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  code        String?   @unique(map: "ProductAlternative_code_idx")
+}

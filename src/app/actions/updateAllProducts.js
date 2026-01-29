@@ -2,8 +2,6 @@
 
 import { prisma } from "../libs/prisma";
 
-
-
 // Solo esta función, nada más
 export async function updateAllProducts(changedProducts) {
   try {

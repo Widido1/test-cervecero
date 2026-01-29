@@ -1,32 +1,64 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function SuperTable({ products, onSave }) {
-  // Estado para los productos editados temporalmente
   const [editedProducts, setEditedProducts] = useState([]);
-  // Estado para rastrear qué campos han sido modificados
   const [modifiedIds, setModifiedIds] = useState(new Set());
+  const [sortOrder, setSortOrder] = useState('asc'); // 'asc' o 'desc'
+  const [sortBy, setSortBy] = useState(null); // 'name', 'price', 'stock', 'priority'
   
-  // Inicializar los datos editables cuando cambian los productos originales
   useEffect(() => {
     setEditedProducts(products.map(p => ({ ...p })));
     setModifiedIds(new Set());
   }, [products]);
   
-  // Función para manejar cambios en los campos editables
+  // Función para ordenar al hacer clic en un encabezado
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      // Si ya está ordenando por este campo, alternar dirección
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Si es un campo nuevo, ordenar ascendente por defecto
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+  
+  // Ordenar productos si hay un criterio de ordenamiento
+  let displayProducts = [...editedProducts];
+  if (sortBy) {
+    displayProducts.sort((a, b) => {
+      let aVal = a[sortBy];
+      let bVal = b[sortBy];
+      
+      if (sortBy === 'name') {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+        return sortOrder === 'asc' 
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+      
+      // Para campos numéricos
+      aVal = parseFloat(aVal) || 0;
+      bVal = parseFloat(bVal) || 0;
+      return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+  }
+  
+  // Resto de las funciones permanecen igual...
   const handleFieldChange = (id, field, value) => {
     setEditedProducts(prev => 
       prev.map(product => {
         if (product.id === id) {
           const newValue = field === 'price' ? parseFloat(value) || 0 : parseInt(value) || 0;
           
-          // Marcar como modificado si el valor cambió
           const originalProduct = products.find(p => p.id === id);
           if (originalProduct && originalProduct[field] !== newValue) {
             setModifiedIds(prevIds => new Set([...prevIds, id]));
           } else {
-            // Si vuelve al valor original, quitar de modificados
             setModifiedIds(prevIds => {
               const newIds = new Set([...prevIds]);
               newIds.delete(id);
@@ -41,11 +73,9 @@ export default function SuperTable({ products, onSave }) {
     );
   };
   
-  // Función para guardar cambios
   const handleSave = () => {
     if (onSave) {
-      // Solo enviar los productos modificados
-      const changedProducts = editedProducts.filter((product, index) => {
+      const changedProducts = editedProducts.filter((product) => {
         if (modifiedIds.has(product.id)) {
           const original = products.find(p => p.id === product.id);
           return JSON.stringify(original) !== JSON.stringify(product);
@@ -54,20 +84,24 @@ export default function SuperTable({ products, onSave }) {
       });
       
       onSave(changedProducts);
-      setModifiedIds(new Set()); // Limpiar modificados después de guardar
+      setModifiedIds(new Set());
     }
   };
   
-  // Función para descartar cambios
   const handleDiscard = () => {
     setEditedProducts(products.map(p => ({ ...p })));
     setModifiedIds(new Set());
   };
   
-  // Verificar si hay cambios pendientes
   const hasChanges = modifiedIds.size > 0;
   
-  const productsRows = editedProducts.map(x => {
+  // Mostrar flecha en el encabezado activo
+  const getSortArrow = (field) => {
+    if (sortBy !== field) return '';
+    return sortOrder === 'asc' ? ' ↑' : ' ↓';
+  };
+  
+  const productsRows = displayProducts.map(x => {
     const isModified = modifiedIds.has(x.id);
     
     return (
@@ -87,7 +121,7 @@ export default function SuperTable({ products, onSave }) {
           <div className="relative">
             <input
               type="number"
-              step="0.01"
+              step="1"
               min="0"
               value={x.price}
               onChange={(e) => handleFieldChange(x.id, 'price', e.target.value)}
@@ -97,9 +131,6 @@ export default function SuperTable({ products, onSave }) {
                   : 'border-gray-300 focus:ring-blue-500'
               }`}
             />
-            {isModified && (
-              <span className="absolute -top-2 -right-2 w-3 h-3 bg-yellow-500 rounded-full"></span>
-            )}
           </div>
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
@@ -115,18 +146,29 @@ export default function SuperTable({ products, onSave }) {
                   : 'border-gray-300 focus:ring-blue-500'
               }`}
             />
-            {isModified && (
-              <span className="absolute -top-2 -right-2 w-3 h-3 bg-yellow-500 rounded-full"></span>
-            )}
           </div>
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
-          <button className="bg-[--color2] text-[--color1] font-bold px-3 py-1 rounded focus:outline-none focus:ring-2 focus:ring-[amber-500]">
-            Editar
-          </button>
+          <div className="relative">
+            <input
+              type="number"
+              min="0"
+              value={x.priority}
+              onChange={(e) => handleFieldChange(x.id, 'priority', e.target.value)}
+              className={`text-sm text-gray-900 border rounded px-2 py-1 w-24 focus:ring-2 focus:outline-none ${
+                isModified 
+                  ? 'border-yellow-400 bg-yellow-50 focus:ring-yellow-500' 
+                  : 'border-gray-300 focus:ring-blue-500'
+              }`}
+            />
+          </div>
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
-          <button className="bg-[--color1] text-[--color2] font-bold px-3 py-1 rounded focus:outline-none focus:ring-2 focus:ring-[amber-500]">Eliminar</button>
+          <Link href={`/cervecero/edit/${x.id}`}>
+            <button className="bg-[--color1] text-[--color2] font-bold px-3 py-1 rounded focus:outline-none focus:ring-2 focus:ring-[amber-500]">
+              Editar
+            </button>
+          </Link>
         </td>
       </tr>
     );
@@ -134,7 +176,6 @@ export default function SuperTable({ products, onSave }) {
 
   return (
     <div className="grid grid-flow-row">
-      {/* Indicador de cambios pendientes */}
       {hasChanges && (
         <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
           <div className="flex items-center justify-between">
@@ -167,16 +208,46 @@ export default function SuperTable({ products, onSave }) {
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Nombre
+            <th 
+              scope="col" 
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              onClick={() => handleSort('name')}
+            >
+              <div className="grid grid-flow-col place-content-start gap-2">
+                <div>Nombre </div>
+                <div className="font-bold text-[--color1]">{getSortArrow('name')}</div>
+              </div>
+
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Precio
+            <th 
+              scope="col" 
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              onClick={() => handleSort('price')}
+            >
+              <div className="grid grid-flow-col place-content-start gap-2">
+                <div>Precio </div>
+                <div className="font-bold text-[--color1]">{getSortArrow('price')}</div>
+              </div>
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Stock
+            <th 
+              scope="col" 
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              onClick={() => handleSort('stock')}
+            >
+              <div className="grid grid-flow-col place-content-start gap-2">
+                <div>Stock </div>
+                <div className="font-bold text-[--color1]">{getSortArrow('stock')}</div>
+              </div>
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th 
+              scope="col" 
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              onClick={() => handleSort('priority')}
+            >
+              <div className="grid grid-flow-col place-content-start gap-2">
+                <div>Prioridad </div>
+                <div className="font-bold text-[--color1]">{getSortArrow('priority')}</div>
+              </div>
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             </th>
@@ -187,7 +258,6 @@ export default function SuperTable({ products, onSave }) {
         </tbody>
       </table>
       
-      {/* Botones de acción en la parte inferior también */}
       {hasChanges && (
         <div className="mt-6 flex justify-end space-x-3">
           <button

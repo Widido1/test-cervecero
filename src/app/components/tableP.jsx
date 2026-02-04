@@ -6,6 +6,7 @@ import Pie from "./pie";
 import SuperTable from "./superTable";
 import { updateAllProducts } from "../actions/updateAllProducts";
 import Link from "next/link";
+import SubirCSV from "./subirCSV";
 
 
 export default function TableP(props) {
@@ -49,7 +50,7 @@ export default function TableP(props) {
        <div className="min-h-[800px] theme1 pt-8 px-4">
         <div className="grid grid-flow-col grid-cols-[1fr-auto-1fr] place-items-center"> 
           <Link href="/cervecero/edit"><button className="grid place-content-start theme2 py-2 px-4 rounded-md font-bold my-2">Crear Nuevo Producto</button></Link>
-          <div></div>
+          <div><SubirCSV/></div>
           <div className="grid place-content-end font-bold">Cantidad de Productos: {products.length}</div>
         </div>
         {isSaving && (

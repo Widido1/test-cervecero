@@ -1,20 +1,45 @@
 import crypto from 'crypto';
 
+// Almacén simple en memoria (para serverless, cada instancia tiene su propio mapa, pero sirve como limitación básica)
+const rateLimit = new Map();
+
 export async function POST(request) {
+  const ip = request.headers.get('x-forwarded-for') || 'unknown';
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000; // 15 minutos
+  const maxAttempts = 5;
+
+  // Limpiar entradas antiguas y verificar límite
+  if (rateLimit.has(ip)) {
+    const { attempts, firstAttempt } = rateLimit.get(ip);
+    if (now - firstAttempt > windowMs) {
+      // Reiniciar el contador si pasó la ventana
+      rateLimit.set(ip, { attempts: 1, firstAttempt: now });
+    } else {
+      if (attempts >= maxAttempts) {
+        return new Response(JSON.stringify({ error: 'Demasiados intentos. Espera 15 minutos.' }), {
+          status: 429,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      rateLimit.set(ip, { attempts: attempts + 1, firstAttempt });
+    }
+  } else {
+    rateLimit.set(ip, { attempts: 1, firstAttempt: now });
+  }
+
+  // Resto del código de login (igual que antes)
   try {
     const { password } = await request.json();
 
     if (password === process.env.ADMIN_PASSWORD) {
-      // Generar token aleatorio de 32 bytes (64 caracteres hex)
       const token = crypto.randomBytes(32).toString('hex');
 
-      // Crear respuesta exitosa
       const response = new Response(JSON.stringify({ success: true }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
 
-      // Establecer cookie HttpOnly
       response.headers.set(
         'Set-Cookie',
         `admin_token=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400; Secure=${process.env.NODE_ENV === 'production'}`
@@ -33,9 +58,4 @@ export async function POST(request) {
       headers: { 'Content-Type': 'application/json' },
     });
   }
-}
-
-// Opcional: manejar GET (para que no dé 404)
-export async function GET() {
-  return new Response('Método no permitido', { status: 405 });
 }

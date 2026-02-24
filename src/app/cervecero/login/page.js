@@ -1,5 +1,7 @@
+'use client';
+
 import { useState } from 'react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 export default function Login() {
   const [password, setPassword] = useState('');
@@ -16,7 +18,8 @@ export default function Login() {
     if (res.ok) {
       router.push('/cervecero');
     } else {
-      setError('Contraseña incorrecta');
+      const data = await res.json();
+      setError(data.error || 'Contraseña incorrecta');
     }
   };
 
